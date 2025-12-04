@@ -2,7 +2,7 @@
     .name = .brainfuck_interpreter,
     .version = "0.0.0",
     .fingerprint = 0x8155f947b90fdd89,
-    .minimum_zig_version = "0.14.1",
+    .minimum_zig_version = "0.15.2",
     .dependencies = .{},
     .paths = .{
         "build.zig",

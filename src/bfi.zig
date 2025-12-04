@@ -43,23 +43,17 @@ pub const InterpreterError: type = error{
 pub const BrainfuckInterpreter: type = struct {
     allocator: std.mem.Allocator,
     loop_stack: ?*LoopStack,
-    reader: std.io.AnyReader,
-    writer: std.io.AnyWriter,
     memory: []u8,
 
     pub fn create(
         allocator: std.mem.Allocator,
-        memory_width: usize,
-        reader: std.io.AnyReader,
-        writer: std.io.AnyWriter,
+        memory_size: usize,
     ) std.mem.Allocator.Error!*BrainfuckInterpreter {
         const interpreter: *BrainfuckInterpreter = try allocator.create(BrainfuckInterpreter);
         interpreter.* = BrainfuckInterpreter{
             .allocator = allocator,
             .loop_stack = null,
-            .reader = reader,
-            .writer = writer,
-            .memory = try allocator.alloc(u8, memory_width),
+            .memory = try allocator.alloc(u8, memory_size),
         };
 
         return interpreter;
@@ -70,7 +64,7 @@ pub const BrainfuckInterpreter: type = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn interpret(self: *BrainfuckInterpreter, program: [*:0]const u8) anyerror!void {
+    pub fn interpret(self: *BrainfuckInterpreter, reader: *std.io.Reader, writer: *std.io.Writer, program: [*:0]const u8) anyerror!void {
         @memset(self.memory, 0);
 
         const program_length: usize = std.mem.len(program);
@@ -90,8 +84,11 @@ pub const BrainfuckInterpreter: type = struct {
                 Operator.PointerPrev => current_address -= 1,
                 Operator.ValueIncrease => self.memory[current_address] +%= 1,
                 Operator.ValueDecrease => self.memory[current_address] -%= 1,
-                Operator.ValueInput => self.memory[current_address] = self.reader.readByte() catch 0,
-                Operator.ValueOutput => try self.writer.writeByte(self.memory[current_address]),
+                Operator.ValueInput => self.memory[current_address] = reader.takeByte() catch 0,
+                Operator.ValueOutput => {
+                    try writer.writeByte(self.memory[current_address]);
+                    try writer.flush();
+                },
                 Operator.LoopStart => self.loop_stack = try LoopStack.push(
                     self.allocator,
                     program_counter,
